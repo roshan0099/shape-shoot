@@ -37,13 +37,13 @@ function checkMobileDevice() {
     
     // Adjust shape generation interval based on device
     if (isLowEndDevice) {
-        shapeGenerationInterval = 1500; // Even slower for low-end devices
-        maxShapesOnScreen = 4; // Very few shapes for low-end devices
-        dotSpacing = 80; // Very sparse dot grid
+        shapeGenerationInterval = 1800; // Even slower for low-end devices
+        maxShapesOnScreen = 3; // Very few shapes for low-end devices
+        dotSpacing = 100; // Very sparse dot grid
     } else if (isMobileDevice) {
-        shapeGenerationInterval = 1200; // Slower for mobile
-        maxShapesOnScreen = 6; // Fewer shapes on mobile for better performance
-        dotSpacing = 60; // Larger spacing (fewer dots) on mobile
+        shapeGenerationInterval = 1500; // Slower for mobile
+        maxShapesOnScreen = 5; // Fewer shapes on mobile for better performance
+        dotSpacing = 80; // Larger spacing (fewer dots) on mobile
     } else {
         shapeGenerationInterval = 800; // Normal for desktop
         maxShapesOnScreen = 12; // Normal for desktop
@@ -1260,10 +1260,13 @@ function createBurstEffect(shape, x, y) {
     // Play explosion sound
     playExplosionSound();
 }
-// Create burst effect when shape is clicked - enhanced explosion effects with optimized performance
+// Create burst effect when shape is clicked - mobile optimized but still visually appealing
 function createBurstEffect(shape, x, y) {
     // Add burst animation to the shape
     shape.classList.add('burst');
+    
+    // Check if we're on mobile and need to use optimized effects
+    const needsOptimization = isMobileDevice || isLowEndDevice;
     
     // Use a single container for all effects to reduce DOM operations
     const effectsContainer = document.createElement('div');
@@ -1277,134 +1280,178 @@ function createBurstEffect(shape, x, y) {
     effectsContainer.style.zIndex = '10';
     gameArea.appendChild(effectsContainer);
     
-    // Create sonic boom effect - enhanced and precisely centered
+    // Create sonic boom effect - optimized for mobile
     const sonicBoom = document.createElement('div');
     sonicBoom.classList.add('sonic-boom');
     sonicBoom.style.position = 'absolute';
     sonicBoom.style.left = `${x}px`;
     sonicBoom.style.top = `${y}px`;
-    sonicBoom.style.width = `${80}px`; // Fixed size for consistency
-    sonicBoom.style.height = `${80}px`; // Fixed size for consistency
-    effectsContainer.appendChild(sonicBoom);
     
-    // Add screen shake effect - enhanced
-    gameArea.classList.add('screen-shake');
+    // Smaller explosion on mobile
+    const boomSize = needsOptimization ? 60 : 80;
+    sonicBoom.style.width = `${boomSize}px`;
+    sonicBoom.style.height = `${boomSize}px`;
     
-    // Create lightning flash effect - enhanced
-    const lightning = document.createElement('div');
-    lightning.classList.add('lightning');
-    effectsContainer.appendChild(lightning);
-    
-    // Create multiple lightning bolts - enhanced
-    for (let i = 0; i < 5; i++) { // More lightning bolts (5)
-        const bolt = document.createElement('div');
-        bolt.classList.add('thunder-bolt');
-        // Position bolts closer to the explosion center
-        const startX = x + (Math.random() - 0.5) * gameArea.clientWidth * 0.6;
-        bolt.style.position = 'absolute';
-        bolt.style.left = `${startX}px`;
-        bolt.style.top = '0px';
-        bolt.style.setProperty('--bolt-height', `${gameArea.clientHeight * 0.8}px`); // Taller bolts
-        bolt.style.transform = `rotate(${(Math.random() - 0.5) * 40}deg)`;
-        effectsContainer.appendChild(bolt);
+    // Add mobile-optimized class if needed
+    if (needsOptimization) {
+        sonicBoom.classList.add('mobile-optimized');
     }
     
-    // Create energy field effect - enhanced and precisely centered
+    effectsContainer.appendChild(sonicBoom);
+    
+    // Add screen shake effect - but only on non-mobile devices
+    if (!needsOptimization) {
+        gameArea.classList.add('screen-shake');
+        setTimeout(() => {
+            gameArea.classList.remove('screen-shake');
+        }, 400);
+    }
+    
+    // Create lightning flash effect - simplified for mobile
+    if (!needsOptimization) {
+        const lightning = document.createElement('div');
+        lightning.classList.add('lightning');
+        effectsContainer.appendChild(lightning);
+        
+        // Create fewer lightning bolts on mobile
+        const boltCount = needsOptimization ? 2 : 5;
+        
+        // Create multiple lightning bolts - fewer on mobile
+        for (let i = 0; i < boltCount; i++) {
+            const bolt = document.createElement('div');
+            bolt.classList.add('thunder-bolt');
+            // Position bolts closer to the explosion center
+            const startX = x + (Math.random() - 0.5) * gameArea.clientWidth * 0.6;
+            bolt.style.position = 'absolute';
+            bolt.style.left = `${startX}px`;
+            bolt.style.top = '0px';
+            bolt.style.setProperty('--bolt-height', `${gameArea.clientHeight * 0.8}px`);
+            bolt.style.transform = `rotate(${(Math.random() - 0.5) * 40}deg)`;
+            effectsContainer.appendChild(bolt);
+        }
+    }
+    
+    // Create energy field effect - smaller on mobile
     const energyField = document.createElement('div');
     energyField.classList.add('energy-field');
     energyField.style.position = 'absolute';
     energyField.style.left = `${x}px`;
     energyField.style.top = `${y}px`;
-    energyField.style.width = `${60}px`; // Fixed size for consistency
-    energyField.style.height = `${60}px`; // Fixed size for consistency
-    effectsContainer.appendChild(energyField);
     
-    // Create shattered pieces effect - enhanced
-    const fragmentContainer = document.createElement('div');
-    fragmentContainer.className = 'fragment-container';
-    fragmentContainer.style.position = 'absolute';
-    fragmentContainer.style.left = '0';
-    fragmentContainer.style.top = '0';
-    fragmentContainer.style.width = '100%';
-    fragmentContainer.style.height = '100%';
-    effectsContainer.appendChild(fragmentContainer);
+    // Smaller energy field on mobile
+    const fieldSize = needsOptimization ? 40 : 60;
+    energyField.style.width = `${fieldSize}px`;
+    energyField.style.height = `${fieldSize}px`;
     
-    // Get the shape's color
-    const shapeColor = window.getComputedStyle(shape).borderColor;
-    
-    // Create more shards for better explosion effect
-    const numShards = 24; // Even more shards
-    const particleColors = [
-        '#ff6b6b', '#ff9ff3', '#feca57', // Red, Pink, Yellow
-        '#54a0ff', '#48dbfb', '#1dd1a1', // Blue, Light Blue, Green
-        '#ffdd59', '#ff5e57', '#d2dae2'  // Bright Yellow, Bright Red, Silver
-    ];
-    
-    for (let i = 0; i < numShards; i++) {
-        const shard = document.createElement('div');
-        shard.classList.add('shard');
-        
-        // Use shape's color for some shards, random colors for others
-        const color = Math.random() > 0.5 ? shapeColor : particleColors[i % particleColors.length];
-        shard.style.backgroundColor = color;
-        shard.style.borderColor = color;
-        
-        // Size - bigger shards
-        const size = 10 + Math.random() * 15;
-        shard.style.width = `${size}px`;
-        shard.style.height = `${size}px`;
-        
-        // Position at center of the shape precisely
-        shard.style.position = 'absolute';
-        shard.style.left = `${x}px`;
-        shard.style.top = `${y}px`;
-        
-        // Random direction with more spread
-        const angle = (i / numShards) * Math.PI * 2;
-        const distance = 200 + Math.random() * 250; // Longer travel distance
-        const tx = Math.cos(angle) * distance;
-        const ty = Math.sin(angle) * distance;
-        
-        // Random rotation
-        const rotation = Math.random() * 720 - 360;
-        shard.style.setProperty('--tx', `${tx}px`);
-        shard.style.setProperty('--ty', `${ty}px`);
-        shard.style.setProperty('--rot', `${rotation}deg`);
-        
-        fragmentContainer.appendChild(shard);
+    // Add mobile-optimized class if needed
+    if (needsOptimization) {
+        energyField.classList.add('mobile-optimized');
     }
     
-    // Add a bright flash at the exact hit location
+    effectsContainer.appendChild(energyField);
+    
+    // Create shattered pieces effect - fewer on mobile
+    // Skip fragment container creation for extreme optimization if needed
+    if (!isLowEndDevice) {
+        const fragmentContainer = document.createElement('div');
+        fragmentContainer.className = 'fragment-container';
+        fragmentContainer.style.position = 'absolute';
+        fragmentContainer.style.left = '0';
+        fragmentContainer.style.top = '0';
+        fragmentContainer.style.width = '100%';
+        fragmentContainer.style.height = '100%';
+        effectsContainer.appendChild(fragmentContainer);
+        
+        // Get the shape's color
+        const shapeColor = window.getComputedStyle(shape).borderColor;
+        
+        // Create fewer shards on mobile
+        const numShards = needsOptimization ? 8 : 24;
+        const particleColors = [
+            '#ff6b6b', '#ff9ff3', '#feca57', // Red, Pink, Yellow
+            '#54a0ff', '#48dbfb', '#1dd1a1'  // Blue, Light Blue, Green
+        ];
+        
+        for (let i = 0; i < numShards; i++) {
+            const shard = document.createElement('div');
+            shard.classList.add('shard');
+            
+            // Use shape's color for some shards, random colors for others
+            const color = Math.random() > 0.5 ? shapeColor : particleColors[i % particleColors.length];
+            shard.style.backgroundColor = color;
+            shard.style.borderColor = color;
+            
+            // Smaller shards on mobile
+            const size = needsOptimization ? (5 + Math.random() * 8) : (10 + Math.random() * 15);
+            shard.style.width = `${size}px`;
+            shard.style.height = `${size}px`;
+            
+            // Position at center of the shape precisely
+            shard.style.position = 'absolute';
+            shard.style.left = `${x}px`;
+            shard.style.top = `${y}px`;
+            
+            // Random direction with less spread on mobile
+            const angle = (i / numShards) * Math.PI * 2;
+            const distance = needsOptimization ? (100 + Math.random() * 100) : (200 + Math.random() * 250);
+            const tx = Math.cos(angle) * distance;
+            const ty = Math.sin(angle) * distance;
+            
+            // Less rotation on mobile
+            const rotation = needsOptimization ? (Math.random() * 360) : (Math.random() * 720 - 360);
+            shard.style.setProperty('--tx', `${tx}px`);
+            shard.style.setProperty('--ty', `${ty}px`);
+            shard.style.setProperty('--rot', `${rotation}deg`);
+            
+            // Add mobile-optimized class if needed
+            if (needsOptimization) {
+                shard.classList.add('mobile-optimized');
+            }
+            
+            fragmentContainer.appendChild(shard);
+        }
+    }
+    
+    // Add a bright flash at the exact hit location - keep this for all devices as it's important feedback
     const hitFlash = document.createElement('div');
     hitFlash.classList.add('hit-flash');
     hitFlash.style.position = 'absolute';
     hitFlash.style.left = `${x}px`;
     hitFlash.style.top = `${y}px`;
+    
+    // Smaller flash on mobile
+    if (needsOptimization) {
+        hitFlash.classList.add('mobile-optimized');
+    }
+    
     effectsContainer.appendChild(hitFlash);
     
-    // Add secondary explosion rings
-    for (let i = 0; i < 3; i++) {
+    // Add secondary explosion rings - fewer on mobile
+    const ringCount = needsOptimization ? 1 : 3;
+    for (let i = 0; i < ringCount; i++) {
         const explosionRing = document.createElement('div');
         explosionRing.classList.add('explosion-ring');
         explosionRing.style.position = 'absolute';
         explosionRing.style.left = `${x}px`;
         explosionRing.style.top = `${y}px`;
         explosionRing.style.animationDelay = `${i * 0.1}s`;
+        
+        // Add mobile-optimized class if needed
+        if (needsOptimization) {
+            explosionRing.classList.add('mobile-optimized');
+        }
+        
         effectsContainer.appendChild(explosionRing);
     }
     
     // Play explosion sound
     playExplosionSound();
     
-    // Remove screen shake after animation
-    setTimeout(() => {
-        gameArea.classList.remove('screen-shake');
-    }, 400);
-    
-    // Remove all effects at once after animation
+    // Remove all effects sooner on mobile
+    const effectsDuration = needsOptimization ? 800 : 1200;
     setTimeout(() => {
         if (gameArea.contains(effectsContainer)) {
             effectsContainer.remove();
         }
-    }, 1200); // Longer duration for effects to be visible
+    }, effectsDuration);
 }
