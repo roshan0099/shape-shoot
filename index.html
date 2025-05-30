@@ -1,0 +1,80 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Shape Shoot</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <!-- Intro Animation -->
+    <div id="intro-animation" class="intro-container">
+        <div class="game-title">
+            <span>S</span>
+            <span>H</span>
+            <span>A</span>
+            <span>P</span>
+            <span>E</span>
+            <span class="space"></span>
+            <span>S</span>
+            <span>H</span>
+            <span>O</span>
+            <span>O</span>
+            <span>T</span>
+        </div>
+        <div class="intro-shapes-container"></div>
+        <button id="intro-start-btn" class="intro-start-button">START</button>
+    </div>
+
+    <div class="game-container">
+        <div class="game-header">
+            <div class="score">Score: <span id="score">0</span></div>
+            <div class="combo">Combo: <span id="combo-counter">0</span></div>
+        </div>
+        <div id="timer-bar-container">
+            <div id="timer-bar"></div>
+        </div>
+        <div id="game-area">
+            <!-- Shapes will be generated here -->
+        </div>
+        <div class="game-controls">
+            <button id="start-btn">Start Game</button>
+            <button id="restart-btn" style="display: none;">Play Again</button>
+        </div>
+    </div>
+    
+    <!-- Game Over Screen -->
+    <div id="game-over" class="hidden">
+        <h2>Game Over!</h2>
+        <p>Your final score: <span id="final-score">0</span></p>
+        <button id="retry-btn" class="retry-button">Retry</button>
+    </div>
+    
+    <!-- Rules Popup -->
+    <div id="rules-popup" class="popup">
+        <div class="popup-content">
+            <h2>Game Rules</h2>
+            <ul>
+                <li>Hit shapes to score points</li>
+                <li>Avoid red shapes - they end the game</li>
+                <li>You must hit at least one shape every 5 seconds</li>
+                <li>Your combo increases with each hit</li>
+                <li>Combo resets if you miss a click</li>
+                <li><strong>Each combo hit gives you 6 points!</strong></li>
+            </ul>
+            <p class="tip"><strong>TIP:</strong> For better accuracy, aim slightly ahead of falling objects - like you're trying to catch them!</p>
+            <button id="start-game-btn" class="start-game-button">Let's Play!</button>
+        </div>
+    </div>
+    
+    <audio id="hit-sound" preload="auto">
+        <source src="hit-sound.mp3" type="audio/mpeg">
+        Your browser does not support the audio element.
+    </audio>
+    <audio id="explosion-sound" preload="auto">
+        <source src="explosion-sound.mp3" type="audio/mpeg">
+        Your browser does not support the audio element.
+    </audio>
+    <script src="script.js"></script>
+</body>
+</html>
