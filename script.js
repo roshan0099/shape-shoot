@@ -38,11 +38,11 @@ function checkMobileDevice() {
     // Adjust shape generation interval based on device
     if (isLowEndDevice) {
         shapeGenerationInterval = 1500; // Even slower for low-end devices
-        maxShapesOnScreen = 3; // Very few shapes for low-end devices
+        maxShapesOnScreen = 4; // Very few shapes for low-end devices
         dotSpacing = 80; // Very sparse dot grid
     } else if (isMobileDevice) {
         shapeGenerationInterval = 1200; // Slower for mobile
-        maxShapesOnScreen = 5; // Fewer shapes on mobile for better performance
+        maxShapesOnScreen = 6; // Fewer shapes on mobile for better performance
         dotSpacing = 60; // Larger spacing (fewer dots) on mobile
     } else {
         shapeGenerationInterval = 800; // Normal for desktop
@@ -95,9 +95,18 @@ restartButton.addEventListener('click', restartGame);
 retryButton.addEventListener('click', restartGame);
 document.getElementById('start-game-btn').addEventListener('click', startGame);
 
-// Add global click handler to improve responsiveness
-document.addEventListener('pointerdown', handleGlobalClick);
+// Add event listeners for touch and mouse events
+document.addEventListener('pointerdown', handleGlobalClick, {passive: false});
 document.addEventListener('touchstart', handleGlobalClick, {passive: false});
+
+// Prevent default touch behaviors that might interfere with the game
+document.addEventListener('touchmove', function(e) {
+    if (gameRunning) e.preventDefault();
+}, {passive: false});
+
+document.addEventListener('touchend', function(e) {
+    if (gameRunning) e.preventDefault();
+}, {passive: false});
 
 // Initialize the game
 function init() {
@@ -198,12 +207,28 @@ function showRulesPopup() {
 function handleGlobalClick(e) {
     if (!gameRunning) return;
     
+    // Prevent default behavior for touch events to avoid scrolling
+    if (e.type === 'touchstart') {
+        e.preventDefault();
+    }
+    
     // Play hit sound for any click
     playHitSound();
     
     // Get the position of the click/touch
-    const x = e.clientX || (e.touches && e.touches[0].clientX);
-    const y = e.clientY || (e.touches && e.touches[0].clientY);
+    let x, y;
+    
+    if (e.type === 'touchstart' || e.type === 'touchmove') {
+        // For touch events
+        if (e.touches && e.touches[0]) {
+            x = e.touches[0].clientX;
+            y = e.touches[0].clientY;
+        }
+    } else {
+        // For mouse events
+        x = e.clientX;
+        y = e.clientY;
+    }
     
     if (!x || !y) return;
     
@@ -213,12 +238,13 @@ function handleGlobalClick(e) {
         const element = clickableElements[i];
         const rect = element.getBoundingClientRect();
         
-        // Expanded hit area for better touch response - increased from 10px to 20px
+        // Expanded hit area for better touch response - much larger on mobile
+        const expandFactor = isMobileDevice ? 40 : 25;
         const expandedRect = {
-            left: rect.left - 20,
-            right: rect.right + 20,
-            top: rect.top - 20,
-            bottom: rect.bottom + 20
+            left: rect.left - expandFactor,
+            right: rect.right + expandFactor,
+            top: rect.top - expandFactor,
+            bottom: rect.bottom + expandFactor
         };
         
         if (x >= expandedRect.left && x <= expandedRect.right && 
@@ -227,7 +253,10 @@ function handleGlobalClick(e) {
             // Trigger the shape's click handler
             element.clickHandler(e);
             hitShape = true;
-            e.preventDefault();
+            
+            if (e.type === 'touchstart') {
+                e.preventDefault();
+            }
             break;
         }
     }
@@ -403,7 +432,7 @@ function createDotGrid() {
     const rows = Math.floor(gameAreaHeight / dotSpacing);
     
     // Create dots - limit the number for better performance
-    const maxDots = isMobileDevice ? 100 : 300; // Even fewer dots on mobile
+    const maxDots = isMobileDevice ? 120 : 300; // Fewer dots on mobile but not too few
     const skipFactor = Math.max(1, Math.floor((rows * cols) / maxDots));
     
     let dotCount = 0;
@@ -433,10 +462,8 @@ function createDotGrid() {
     }
     
     // Add mouse move event listener to illuminate dots with throttling
-    if (!isLowEndDevice) { // Skip on very low-end devices
-        gameArea.addEventListener('mousemove', handleMouseMove);
-        gameArea.addEventListener('touchmove', handleTouchMove, { passive: true });
-    }
+    gameArea.addEventListener('mousemove', handleMouseMove);
+    gameArea.addEventListener('touchmove', handleTouchMove, { passive: true });
 }
 
 // Handle mouse move with throttling
@@ -659,7 +686,12 @@ function generateShape() {
             if (currentCheckpoint > lastCheckpoint && currentCheckpoint > 0) {
                 // We've reached a new checkpoint
                 lastCheckpoint = currentCheckpoint;
-                triggerCheckpointExplosion(currentCheckpoint);
+                // Make sure this function exists and is called correctly
+                if (typeof triggerCheckpointExplosion === 'function') {
+                    triggerCheckpointExplosion(currentCheckpoint);
+                } else {
+                    console.error("triggerCheckpointExplosion function not found");
+                }
             }
             
             // Reset the timer on successful hit
@@ -1207,6 +1239,180 @@ function createBurstEffect(shape, x, y) {
             }
         }, isMobileDevice ? 1000 : 1800);
     }
+    
+    // Remove sonic boom after animation
+    setTimeout(() => {
+        if (gameArea.contains(sonicBoom)) {
+            sonicBoom.remove();
+        }
+    }, 1000);
+    
+    // Play explosion sound
+    playExplosionSound();
+}
+// Create burst effect when shape is clicked - optimized version
+function createBurstEffect(shape, x, y) {
+    // Add burst animation to the shape
+    shape.classList.add('burst');
+    
+    // Skip most effects on low-end devices, but keep screen shake
+    if (isLowEndDevice) {
+        // Add screen shake effect even on low-end devices
+        gameArea.classList.add('screen-shake');
+        setTimeout(() => {
+            gameArea.classList.remove('screen-shake');
+        }, 400);
+        
+        // Play explosion sound
+        playExplosionSound();
+        return;
+    }
+    
+    // Create sonic boom effect
+    const sonicBoom = document.createElement('div');
+    sonicBoom.classList.add('sonic-boom');
+    
+    // Position at the center of the clicked shape
+    const rect = shape.getBoundingClientRect();
+    const gameAreaRect = gameArea.getBoundingClientRect();
+    
+    const centerX = rect.left + rect.width / 2 - gameAreaRect.left;
+    const centerY = rect.top + rect.height / 2 - gameAreaRect.top;
+    
+    sonicBoom.style.left = `${centerX}px`;
+    sonicBoom.style.top = `${centerY}px`;
+    sonicBoom.style.width = `${rect.width * 4}px`;
+    sonicBoom.style.height = `${rect.height * 4}px`;
+    
+    gameArea.appendChild(sonicBoom);
+    
+    // Add screen shake effect for all devices
+    gameArea.classList.add('screen-shake');
+    setTimeout(() => {
+        gameArea.classList.remove('screen-shake');
+    }, 400);
+    
+    // Skip lightning on mobile for performance
+    if (!isMobileDevice) {
+        // Create lightning flash effect
+        const lightning = document.createElement('div');
+        lightning.classList.add('lightning');
+        gameArea.appendChild(lightning);
+        
+        // Create lightning bolt
+        const createLightningBolt = () => {
+            const bolt = document.createElement('div');
+            bolt.classList.add('thunder-bolt');
+            
+            // Random position
+            const startX = Math.random() * gameArea.clientWidth;
+            bolt.style.left = `${startX}px`;
+            bolt.style.top = '0px';
+            
+            // Random height
+            const height = gameArea.clientHeight * (0.5 + Math.random() * 0.5);
+            bolt.style.setProperty('--bolt-height', `${height}px`);
+            
+            // Random rotation
+            const rotation = (Math.random() - 0.5) * 30;
+            bolt.style.transform = `rotate(${rotation}deg)`;
+            
+            gameArea.appendChild(bolt);
+            
+            // Remove after animation
+            setTimeout(() => {
+                if (gameArea.contains(bolt)) {
+                    bolt.remove();
+                }
+            }, 500);
+        };
+        
+        // Create multiple lightning bolts
+        createLightningBolt();
+        setTimeout(createLightningBolt, 100);
+        
+        // Remove lightning flash after animation
+        setTimeout(() => {
+            if (gameArea.contains(lightning)) {
+                lightning.remove();
+            }
+        }, 300);
+    }
+    
+    // Create energy field effect - simpler on mobile
+    const energyField = document.createElement('div');
+    energyField.classList.add('energy-field');
+    energyField.style.left = `${centerX}px`;
+    energyField.style.top = `${centerY}px`;
+    energyField.style.width = `${rect.width}px`;
+    energyField.style.height = `${rect.height}px`;
+    gameArea.appendChild(energyField);
+    
+    // Remove energy field after animation
+    setTimeout(() => {
+        if (gameArea.contains(energyField)) {
+            energyField.remove();
+        }
+    }, 800);
+    
+    // Create shattered pieces effect - optimized for performance
+    // Fewer shards on mobile but still keep some
+    const numShards = isMobileDevice ? 15 : 30;
+    
+    const particleColors = [
+        '#ff6b6b', '#48dbfb', '#1dd1a1', '#feca57', '#ff9ff3', 
+        '#00d2d3', '#54a0ff', '#6c5ce7', '#fdcb6e', '#e84393'
+    ];
+    
+    // Get the shape's color for the shards
+    const shapeColor = window.getComputedStyle(shape).borderColor;
+    
+    // Create a fragment container for better performance
+    const fragmentContainer = document.createElement('div');
+    fragmentContainer.className = 'fragment-container';
+    gameArea.appendChild(fragmentContainer);
+    
+    for (let i = 0; i < numShards; i++) {
+        const shard = document.createElement('div');
+        shard.classList.add('shard');
+        
+        // Use shape's color for some shards, random colors for others
+        const useShapeColor = Math.random() > 0.5;
+        const color = useShapeColor ? shapeColor : particleColors[Math.floor(Math.random() * particleColors.length)];
+        shard.style.backgroundColor = color;
+        shard.style.borderColor = color;
+        
+        // Random size for varied effect - smaller for more realistic shards
+        const size = 5 + Math.random() * 15;
+        shard.style.width = `${size}px`;
+        shard.style.height = `${size}px`;
+        
+        // Position at the center of the clicked shape
+        shard.style.left = `${centerX}px`;
+        shard.style.top = `${centerY}px`;
+        
+        // Random direction with more spread
+        const angle = (i / numShards) * Math.PI * 2 + Math.random() * 0.5;
+        const distance = 150 + Math.random() * 250;
+        const tx = Math.cos(angle) * distance;
+        const ty = Math.sin(angle) * distance;
+        
+        // Random rotation for each shard
+        const rotation = Math.random() * 720 - 360;
+        shard.style.setProperty('--tx', `${tx}px`);
+        shard.style.setProperty('--ty', `${ty}px`);
+        shard.style.setProperty('--rot', `${rotation}deg`);
+        
+        // Add to fragment container
+        fragmentContainer.appendChild(shard);
+    }
+    
+    // Remove fragment container after animation - shorter time on mobile
+    setTimeout(() => {
+        if (gameArea.contains(fragmentContainer)) {
+            fragmentContainer.remove();
+        }
+    }, isMobileDevice ? 1000 : 1800);
     
     // Remove sonic boom after animation
     setTimeout(() => {

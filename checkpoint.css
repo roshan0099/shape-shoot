@@ -32,3 +32,11 @@
         opacity: 0;
     }
 }
+
+/* Mobile-specific adjustments */
+@media (max-width: 768px) {
+    .checkpoint-text {
+        font-size: 50px; /* Slightly smaller on mobile */
+        text-shadow: 0 0 15px rgba(76, 175, 80, 0.9); /* Stronger shadow for visibility */
+    }
+}

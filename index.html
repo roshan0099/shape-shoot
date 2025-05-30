@@ -5,6 +5,38 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>Shape Shoot</title>
     <link rel="stylesheet" href="style.css">
+    <link rel="stylesheet" href="checkpoint.css">
+    <style>
+        /* Additional touch-specific styles */
+        @media (max-width: 768px) {
+            .shape {
+                /* Make shapes larger on mobile for easier targeting */
+                transform: scale(1.2);
+            }
+            
+            /* Prevent text selection on mobile */
+            * {
+                -webkit-touch-callout: none;
+                -webkit-user-select: none;
+                -khtml-user-select: none;
+                -moz-user-select: none;
+                -ms-user-select: none;
+                user-select: none;
+                touch-action: none;
+            }
+            
+            /* Make game area take full screen */
+            #game-area {
+                position: fixed;
+                top: 64px;
+                left: 0;
+                right: 0;
+                bottom: 0;
+                width: 100%;
+                height: calc(100% - 64px);
+            }
+        }
+    </style>
 </head>
 <body>
     <!-- Intro Animation -->
@@ -61,6 +93,7 @@
                 <li>Your combo increases with each hit</li>
                 <li>Combo resets if you miss a click</li>
                 <li><strong>Each combo hit gives you 6 points!</strong></li>
+                <li>Reach 100, 200, 300 points for special effects!</li>
             </ul>
             <p class="tip"><strong>TIP:</strong> For better accuracy, aim slightly ahead of falling objects - like you're trying to catch them!</p>
             <button id="start-game-btn" class="start-game-button">Let's Play!</button>
@@ -76,5 +109,6 @@
         Your browser does not support the audio element.
     </audio>
     <script src="script.js"></script>
+    <script src="checkpoint.js"></script>
 </body>
 </html>
