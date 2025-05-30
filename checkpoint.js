@@ -1,6 +1,6 @@
 // Simple checkpoint notification when reaching 100, 200, 300, etc.
 // NO explosions, NO object removal, just a visual indicator
-console.log("start")
+// console.log("start")
 function triggerCheckpointExplosion(checkpoint) {
     console.log("Checkpoint reached:", checkpoint);
     
