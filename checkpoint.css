@@ -1,73 +1,34 @@
-/* Checkpoint celebration effect */
-.checkpoint-overlay {
-    position: absolute;
-    top: 0;
-    left: 0;
-    width: 100%;
-    height: 100%;
-    background-color: rgba(0, 0, 0, 0.5);
-    z-index: 50;
-    display: flex;
-    justify-content: center;
-    align-items: center;
-    pointer-events: none;
-}
-
+/* Checkpoint celebration effect - simplified for better performance */
 .checkpoint-text {
-    font-size: 80px;
-    font-weight: bold;
-    color: #4CAF50;
-    text-shadow: 0 0 30px rgba(76, 175, 80, 0.8);
-    animation: checkpointPulse 1.5s ease-in-out;
-    opacity: 0;
-}
-
-@keyframes checkpointPulse {
-    0% {
-        transform: scale(0.5);
-        opacity: 0;
-    }
-    50% {
-        transform: scale(1.2);
-        opacity: 1;
-    }
-    100% {
-        transform: scale(1);
-        opacity: 0;
-    }
-}
-
-.mega-explosion {
-    position: absolute;
-    width: 100%;
-    height: 100%;
-    top: 0;
-    left: 0;
-    pointer-events: none;
-    z-index: 49;
-}
-
-.mega-explosion-ring {
     position: absolute;
     top: 50%;
     left: 50%;
     transform: translate(-50%, -50%);
-    border: 5px solid #4CAF50;
-    border-radius: 50%;
-    box-shadow: 0 0 50px rgba(76, 175, 80, 0.8);
-    opacity: 0.8;
-    animation: megaExplosionRing 1s ease-out forwards;
+    font-size: 60px;
+    font-weight: bold;
+    color: #4CAF50;
+    text-shadow: 0 0 20px rgba(76, 175, 80, 0.8);
+    animation: checkpointPulse 1.5s ease-in-out;
+    opacity: 0;
+    z-index: 50;
+    pointer-events: none;
 }
 
-@keyframes megaExplosionRing {
+@keyframes checkpointPulse {
     0% {
-        width: 0;
-        height: 0;
-        opacity: 0.8;
+        transform: translate(-50%, -50%) scale(0.5);
+        opacity: 0;
+    }
+    30% {
+        transform: translate(-50%, -50%) scale(1.2);
+        opacity: 1;
+    }
+    70% {
+        transform: translate(-50%, -50%) scale(1.2);
+        opacity: 1;
     }
     100% {
-        width: 300%;
-        height: 300%;
+        transform: translate(-50%, -50%) scale(1);
         opacity: 0;
     }
 }

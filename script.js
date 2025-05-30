@@ -20,17 +20,41 @@ let isMobileDevice = false;
 let shapeGenerationInterval = 800; // Default interval for desktop
 let maxShapesOnScreen = 12; // Default max shapes for desktop
 let lastCheckpoint = 0; // Track the last score checkpoint (100, 200, etc.)
+let isLowEndDevice = false; // Flag for very low-end devices
 
-// Check if device is mobile
+// Check if device is mobile and detect low-end devices
 function checkMobileDevice() {
     isMobileDevice = window.innerWidth < 768 || 
                     /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
     
-    // Adjust shape generation interval based on device
-    shapeGenerationInterval = isMobileDevice ? 800 : 800; // Same speed for both now
+    // Try to detect low-end devices based on memory or processor constraints
+    // This is a rough estimate - devices with less memory or older processors will struggle more
+    isLowEndDevice = isMobileDevice && (
+        /Android 4\.|Android 5\.0|iPhone OS [789]_/.test(navigator.userAgent) || 
+        window.innerWidth < 375 || 
+        window.performance && window.performance.memory && window.performance.memory.jsHeapSizeLimit < 200000000
+    );
     
-    // Also adjust the maximum number of shapes allowed on screen
-    maxShapesOnScreen = isMobileDevice ? 10 : 12; // Increased for mobile (was 6)
+    // Adjust shape generation interval based on device
+    if (isLowEndDevice) {
+        shapeGenerationInterval = 1500; // Even slower for low-end devices
+        maxShapesOnScreen = 3; // Very few shapes for low-end devices
+        dotSpacing = 80; // Very sparse dot grid
+    } else if (isMobileDevice) {
+        shapeGenerationInterval = 1200; // Slower for mobile
+        maxShapesOnScreen = 5; // Fewer shapes on mobile for better performance
+        dotSpacing = 60; // Larger spacing (fewer dots) on mobile
+    } else {
+        shapeGenerationInterval = 800; // Normal for desktop
+        maxShapesOnScreen = 12; // Normal for desktop
+        dotSpacing = 40; // Normal spacing for desktop
+    }
+    
+    console.log("Device detection:", 
+                isMobileDevice ? "Mobile" : "Desktop", 
+                isLowEndDevice ? "(Low-end)" : "",
+                "Shapes:", maxShapesOnScreen,
+                "Interval:", shapeGenerationInterval);
 }
 
 // Call this on page load
@@ -366,6 +390,11 @@ function createDotGrid() {
     dotGrid.classList.add('dot-grid');
     gameArea.appendChild(dotGrid);
     
+    // Skip dot grid entirely on low-end devices
+    if (isLowEndDevice) {
+        return;
+    }
+    
     // Calculate number of dots based on game area size and spacing
     const gameAreaWidth = gameArea.clientWidth;
     const gameAreaHeight = gameArea.clientHeight;
@@ -374,7 +403,7 @@ function createDotGrid() {
     const rows = Math.floor(gameAreaHeight / dotSpacing);
     
     // Create dots - limit the number for better performance
-    const maxDots = 300; // Limit total number of dots
+    const maxDots = isMobileDevice ? 100 : 300; // Even fewer dots on mobile
     const skipFactor = Math.max(1, Math.floor((rows * cols) / maxDots));
     
     let dotCount = 0;
@@ -404,8 +433,10 @@ function createDotGrid() {
     }
     
     // Add mouse move event listener to illuminate dots with throttling
-    gameArea.addEventListener('mousemove', handleMouseMove);
-    gameArea.addEventListener('touchmove', handleTouchMove, { passive: true });
+    if (!isLowEndDevice) { // Skip on very low-end devices
+        gameArea.addEventListener('mousemove', handleMouseMove);
+        gameArea.addEventListener('touchmove', handleTouchMove, { passive: true });
+    }
 }
 
 // Handle mouse move with throttling
@@ -417,13 +448,13 @@ function handleMouseMove(e) {
     mousePosition.x = e.clientX - rect.left;
     mousePosition.y = e.clientY - rect.top;
     
-    // Create particle trail
-    if (gameRunning && currentTime - lastMouseMoveTime > 30) {
+    // Create particle trail - less frequent on mobile
+    if (gameRunning && currentTime - lastMouseMoveTime > (isMobileDevice ? 60 : 30)) {
         createTrailParticle(mousePosition.x, mousePosition.y);
     }
     
-    // Throttle the actual illumination
-    if (currentTime - lastMouseMoveTime > mouseThrottleDelay) {
+    // Throttle the actual illumination - more throttling on mobile
+    if (currentTime - lastMouseMoveTime > (isMobileDevice ? 100 : 50)) {
         lastMouseMoveTime = currentTime;
         
         // Use requestAnimationFrame for better performance
@@ -439,6 +470,9 @@ function handleMouseMove(e) {
 
 // Create trail particle
 function createTrailParticle(x, y) {
+    // On mobile, create fewer particles
+    if (isMobileDevice && Math.random() > 0.5) return;
+    
     const particle = document.createElement('div');
     particle.classList.add('particle-trail');
     
@@ -458,12 +492,12 @@ function createTrailParticle(x, y) {
     // Add to game area
     gameArea.appendChild(particle);
     
-    // Remove after animation
+    // Remove after animation - shorter time on mobile
     setTimeout(() => {
         if (gameArea.contains(particle)) {
             particle.remove();
         }
-    }, 1000);
+    }, isMobileDevice ? 500 : 1000);
 }
 
 // Handle touch move for mobile devices
@@ -476,13 +510,13 @@ function handleTouchMove(e) {
         mousePosition.x = touch.clientX - rect.left;
         mousePosition.y = touch.clientY - rect.top;
         
-        // Create particle trail for touch as well
-        if (gameRunning && currentTime - lastMouseMoveTime > 30) {
+        // Create particle trail for touch as well - less frequent on mobile
+        if (gameRunning && currentTime - lastMouseMoveTime > 60) {
             createTrailParticle(mousePosition.x, mousePosition.y);
         }
         
-        // Throttle the actual illumination
-        if (currentTime - lastMouseMoveTime > mouseThrottleDelay) {
+        // Throttle the actual illumination - more throttling on mobile
+        if (currentTime - lastMouseMoveTime > 100) {
             lastMouseMoveTime = currentTime;
             
             // Use requestAnimationFrame for better performance
@@ -499,10 +533,20 @@ function handleTouchMove(e) {
 
 function illuminateDotsAtPosition(x, y) {
     // Find dots near the cursor and activate them
-    const radius = 100; // Activation radius
+    const radius = isMobileDevice ? 80 : 100; // Smaller radius on mobile
     const radiusSquared = radius * radius; // Square the radius for performance
     
+    // On mobile, only update a subset of dots each time for better performance
+    const updateEvery = isMobileDevice ? 2 : 1;
+    let counter = 0;
+    
     dots.forEach(dot => {
+        // On mobile, only update some dots each time
+        if (isMobileDevice) {
+            counter++;
+            if (counter % updateEvery !== 0) return;
+        }
+        
         const dotX = parseFloat(dot.dataset.x);
         const dotY = parseFloat(dot.dataset.y);
         
@@ -1002,4 +1046,175 @@ function triggerCheckpointExplosion(checkpoint) {
         }
         gameRunning = wasGameRunning;
     }, 1500);
+}
+// Create burst effect when shape is clicked - optimized version
+function createBurstEffect(shape, x, y) {
+    // Add burst animation to the shape
+    shape.classList.add('burst');
+    
+    // Skip most effects on low-end devices
+    if (isLowEndDevice) {
+        // Play explosion sound
+        playExplosionSound();
+        return;
+    }
+    
+    // Create sonic boom effect
+    const sonicBoom = document.createElement('div');
+    sonicBoom.classList.add('sonic-boom');
+    
+    // Position at the center of the clicked shape
+    const rect = shape.getBoundingClientRect();
+    const gameAreaRect = gameArea.getBoundingClientRect();
+    
+    const centerX = rect.left + rect.width / 2 - gameAreaRect.left;
+    const centerY = rect.top + rect.height / 2 - gameAreaRect.top;
+    
+    sonicBoom.style.left = `${centerX}px`;
+    sonicBoom.style.top = `${centerY}px`;
+    sonicBoom.style.width = `${rect.width * 4}px`;
+    sonicBoom.style.height = `${rect.height * 4}px`;
+    
+    gameArea.appendChild(sonicBoom);
+    
+    // Skip screen shake and lightning on mobile
+    if (!isMobileDevice) {
+        // Add enhanced screen shake effect
+        gameArea.classList.add('screen-shake');
+        setTimeout(() => {
+            gameArea.classList.remove('screen-shake');
+        }, 400);
+        
+        // Create lightning flash effect
+        const lightning = document.createElement('div');
+        lightning.classList.add('lightning');
+        gameArea.appendChild(lightning);
+        
+        // Create lightning bolt
+        const createLightningBolt = () => {
+            const bolt = document.createElement('div');
+            bolt.classList.add('thunder-bolt');
+            
+            // Random position
+            const startX = Math.random() * gameArea.clientWidth;
+            bolt.style.left = `${startX}px`;
+            bolt.style.top = '0px';
+            
+            // Random height
+            const height = gameArea.clientHeight * (0.5 + Math.random() * 0.5);
+            bolt.style.setProperty('--bolt-height', `${height}px`);
+            
+            // Random rotation
+            const rotation = (Math.random() - 0.5) * 30;
+            bolt.style.transform = `rotate(${rotation}deg)`;
+            
+            gameArea.appendChild(bolt);
+            
+            // Remove after animation
+            setTimeout(() => {
+                if (gameArea.contains(bolt)) {
+                    bolt.remove();
+                }
+            }, 500);
+        };
+        
+        // Create multiple lightning bolts
+        createLightningBolt();
+        setTimeout(createLightningBolt, 100);
+        
+        // Remove lightning flash after animation
+        setTimeout(() => {
+            if (gameArea.contains(lightning)) {
+                lightning.remove();
+            }
+        }, 300);
+    }
+    
+    // Create energy field effect - simpler on mobile
+    const energyField = document.createElement('div');
+    energyField.classList.add('energy-field');
+    energyField.style.left = `${centerX}px`;
+    energyField.style.top = `${centerY}px`;
+    energyField.style.width = `${rect.width}px`;
+    energyField.style.height = `${rect.height}px`;
+    gameArea.appendChild(energyField);
+    
+    // Remove energy field after animation
+    setTimeout(() => {
+        if (gameArea.contains(energyField)) {
+            energyField.remove();
+        }
+    }, 800);
+    
+    // Create shattered pieces effect - optimized for performance
+    // Skip on low-end devices, fewer on mobile
+    const numShards = isMobileDevice ? 10 : 20;
+    
+    // Skip shards on very low-end devices
+    if (!isMobileDevice) {
+        const particleColors = [
+            '#ff6b6b', '#48dbfb', '#1dd1a1', '#feca57', '#ff9ff3', 
+            '#00d2d3', '#54a0ff', '#6c5ce7', '#fdcb6e', '#e84393'
+        ];
+        
+        // Get the shape's color for the shards
+        const shapeColor = window.getComputedStyle(shape).borderColor;
+        
+        // Create a fragment container for better performance
+        const fragmentContainer = document.createElement('div');
+        fragmentContainer.className = 'fragment-container';
+        gameArea.appendChild(fragmentContainer);
+        
+        for (let i = 0; i < numShards; i++) {
+            const shard = document.createElement('div');
+            shard.classList.add('shard');
+            
+            // Use shape's color for some shards, random colors for others
+            const useShapeColor = Math.random() > 0.5;
+            const color = useShapeColor ? shapeColor : particleColors[Math.floor(Math.random() * particleColors.length)];
+            shard.style.backgroundColor = color;
+            shard.style.borderColor = color;
+            
+            // Random size for varied effect - smaller for more realistic shards
+            const size = 5 + Math.random() * 15;
+            shard.style.width = `${size}px`;
+            shard.style.height = `${size}px`;
+            
+            // Position at the center of the clicked shape
+            shard.style.left = `${centerX}px`;
+            shard.style.top = `${centerY}px`;
+            
+            // Random direction with more spread
+            const angle = (i / numShards) * Math.PI * 2 + Math.random() * 0.5;
+            const distance = 150 + Math.random() * 250;
+            const tx = Math.cos(angle) * distance;
+            const ty = Math.sin(angle) * distance;
+            
+            // Random rotation for each shard
+            const rotation = Math.random() * 720 - 360;
+            shard.style.setProperty('--tx', `${tx}px`);
+            shard.style.setProperty('--ty', `${ty}px`);
+            shard.style.setProperty('--rot', `${rotation}deg`);
+            
+            // Add to fragment container
+            fragmentContainer.appendChild(shard);
+        }
+        
+        // Remove fragment container after animation - shorter time on mobile
+        setTimeout(() => {
+            if (gameArea.contains(fragmentContainer)) {
+                fragmentContainer.remove();
+            }
+        }, isMobileDevice ? 1000 : 1800);
+    }
+    
+    // Remove sonic boom after animation
+    setTimeout(() => {
+        if (gameArea.contains(sonicBoom)) {
+            sonicBoom.remove();
+        }
+    }, 1000);
+    
+    // Play explosion sound
+    playExplosionSound();
 }
