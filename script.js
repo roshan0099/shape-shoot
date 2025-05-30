@@ -237,6 +237,10 @@ function handleGlobalClick(e) {
     // First pass: find the closest shape to the click
     for (let i = clickableElements.length - 1; i >= 0; i--) {
         const element = clickableElements[i];
+        
+        // Skip if element is already being processed
+        if (element.isBeingProcessed) continue;
+        
         const rect = element.getBoundingClientRect();
         
         // Calculate center of shape
@@ -260,6 +264,9 @@ function handleGlobalClick(e) {
         // Play hit sound
         playHitSound();
         
+        // Mark as being processed to prevent double-hits
+        closestShape.isBeingProcessed = true;
+        
         // Trigger the shape's click handler
         closestShape.clickHandler(e);
         hitShape = true;
@@ -268,19 +275,26 @@ function handleGlobalClick(e) {
             e.preventDefault();
         }
     } else {
+        // Only show miss if we're not currently processing any explosions
+        // This prevents false misses during explosions
+        const hasActiveExplosions = document.querySelector('.sonic-boom, .energy-field, .fragment-container') !== null;
+        
         // If no shape was hit and we clicked in the game area, show miss
-        const gameAreaRect = gameArea.getBoundingClientRect();
-        if (x >= gameAreaRect.left && x <= gameAreaRect.right && 
-            y >= gameAreaRect.top && y <= gameAreaRect.bottom) {
-            
-            // Reset combo to 0 when missing a hit
-            resetCombo();
-            
-            // Show "MISS!" text at the click position
-            showMissText(x, y);
-            
-            // Play hit sound for misses too
-            playHitSound();
+        // But only if there are no active explosions
+        if (!hasActiveExplosions) {
+            const gameAreaRect = gameArea.getBoundingClientRect();
+            if (x >= gameAreaRect.left && x <= gameAreaRect.right && 
+                y >= gameAreaRect.top && y <= gameAreaRect.bottom) {
+                
+                // Reset combo to 0 when missing a hit
+                resetCombo();
+                
+                // Show "MISS!" text at the click position
+                showMissText(x, y);
+                
+                // Play hit sound for misses too
+                playHitSound();
+            }
         }
     }
 }
@@ -689,6 +703,9 @@ function generateShape() {
             // Game over if clicked on dangerous shape
             endGame();
         } else {
+            // Flag this shape as being processed to prevent double-processing
+            shape.isBeingProcessed = true;
+            
             // Increase score if clicked on safe shape - now 6 points per combo hit!
             const pointsToAdd = comboCount >= 1 ? 6 : 1; // 6 points for combo hits
             score += pointsToAdd;
