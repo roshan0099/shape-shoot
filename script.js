@@ -212,9 +212,6 @@ function handleGlobalClick(e) {
         e.preventDefault();
     }
     
-    // Play hit sound for any click
-    playHitSound();
-    
     // Get the position of the click/touch
     let x, y;
     
@@ -234,45 +231,63 @@ function handleGlobalClick(e) {
     
     // Check if any shape was clicked
     let hitShape = false;
+    let closestDistance = Infinity;
+    let closestShape = null;
+    
+    // First pass: find the closest shape to the click
     for (let i = clickableElements.length - 1; i >= 0; i--) {
         const element = clickableElements[i];
         const rect = element.getBoundingClientRect();
         
-        // Expanded hit area for better touch response - much larger on mobile
-        const expandFactor = isMobileDevice ? 40 : 25;
-        const expandedRect = {
-            left: rect.left - expandFactor,
-            right: rect.right + expandFactor,
-            top: rect.top - expandFactor,
-            bottom: rect.bottom + expandFactor
-        };
+        // Calculate center of shape
+        const centerX = rect.left + rect.width / 2;
+        const centerY = rect.top + rect.height / 2;
         
-        if (x >= expandedRect.left && x <= expandedRect.right && 
-            y >= expandedRect.top && y <= expandedRect.bottom) {
-            
-            // Trigger the shape's click handler
-            element.clickHandler(e);
-            hitShape = true;
-            
-            if (e.type === 'touchstart') {
-                e.preventDefault();
-            }
-            break;
+        // Calculate distance to click
+        const distance = Math.sqrt(Math.pow(centerX - x, 2) + Math.pow(centerY - y, 2));
+        
+        // Expanded hit area for better touch response
+        const expandFactor = isMobileDevice ? 60 : 40;
+        
+        if (distance < expandFactor && distance < closestDistance) {
+            closestDistance = distance;
+            closestShape = element;
         }
     }
     
-    // If no shape was hit, reset combo and show miss text
-    if (!hitShape && clickableElements.length > 0) {
-        // Reset combo to 0 when missing a hit
-        resetCombo();
+    // If we found a close shape, trigger its click handler
+    if (closestShape) {
+        // Play hit sound
+        playHitSound();
         
-        // Show "MISS!" text at the click position
-        showMissText(x, y);
+        // Trigger the shape's click handler
+        closestShape.clickHandler(e);
+        hitShape = true;
+        
+        if (e.type === 'touchstart') {
+            e.preventDefault();
+        }
+    } else {
+        // If no shape was hit and we clicked in the game area, show miss
+        const gameAreaRect = gameArea.getBoundingClientRect();
+        if (x >= gameAreaRect.left && x <= gameAreaRect.right && 
+            y >= gameAreaRect.top && y <= gameAreaRect.bottom) {
+            
+            // Reset combo to 0 when missing a hit
+            resetCombo();
+            
+            // Show "MISS!" text at the click position
+            showMissText(x, y);
+            
+            // Play hit sound for misses too
+            playHitSound();
+        }
     }
 }
 
 // Show miss text
 function showMissText(x, y) {
+    // Create miss text
     const missText = document.createElement('div');
     missText.classList.add('miss-text');
     missText.textContent = "MISS!";
@@ -593,6 +608,7 @@ function illuminateDotsAtPosition(x, y) {
     });
 }
 
+// Generate shape with optimized performance
 function generateShape() {
     if (!gameRunning) return;
     
@@ -639,22 +655,16 @@ function generateShape() {
     shape.style.left = `${randomX}px`;
     shape.style.top = '-50px';
     
-    // Add special effects to some shapes (not dangerous ones)
-    if (!isDangerous && Math.random() > 0.7) {
-        // Add glow effect to some shapes
-        shape.classList.add('glow');
-    }
+    // Remove glow effects completely for better performance
     
-    // Physics properties - only vertical movement and rotation
+    // Physics properties - optimized for performance
     const physics = {
         x: randomX,
         y: -50,
-        speedX: 0,                         // No horizontal movement
-        speedY: Math.random() * 2 + 1.5,   // Falling speed
-        acceleration: 0.1,                 // Gravity
+        speedY: Math.random() * 1.5 + 1.5,   // Slightly faster falling for better gameplay
+        acceleration: 0.08,                 // Slightly less gravity for smoother movement
         rotation: Math.random() * 360,     // Initial rotation
-        rotationSpeed: (Math.random() - 0.5) * 10, // Rotation speed
-        wobbleAngle: 0                     // Current wobble angle
+        rotationSpeed: (Math.random() - 0.5) * 8 // Less rotation for better performance
     };
     
     // Define click handler function
@@ -666,7 +676,10 @@ function generateShape() {
         
         if (!gameRunning) return;
         
-        // Remove from clickable elements
+        // Flag this shape as being processed to prevent double-processing
+        shape.isBeingProcessed = true;
+        
+        // Remove from clickable elements immediately to prevent double-hits
         const index = clickableElements.indexOf(shape);
         if (index > -1) {
             clickableElements.splice(index, 1);
@@ -689,8 +702,6 @@ function generateShape() {
                 // Make sure this function exists and is called correctly
                 if (typeof triggerCheckpointExplosion === 'function') {
                     triggerCheckpointExplosion(currentCheckpoint);
-                } else {
-                    console.error("triggerCheckpointExplosion function not found");
                 }
             }
             
@@ -712,11 +723,17 @@ function generateShape() {
                 showComboText(comboCount, centerX, centerY);
             }
             
-            // Show score popup
-            showScorePopup(physics.x, physics.y, pointsToAdd);
+            // Get the ACTUAL position of the shape on screen
+            const rect = shape.getBoundingClientRect();
+            const gameAreaRect = gameArea.getBoundingClientRect();
+            const centerX = rect.left + rect.width / 2 - gameAreaRect.left;
+            const centerY = rect.top + rect.height / 2 - gameAreaRect.top;
             
-            // Create burst effect
-            createBurstEffect(shape, physics.x, physics.y);
+            // Show score popup at the actual position
+            showScorePopup(centerX, centerY, pointsToAdd);
+            
+            // Create burst effect at the actual position
+            createBurstEffect(shape, centerX, centerY);
             
             // Remove shape
             cancelAnimationFrame(shape.animationId);
@@ -730,21 +747,17 @@ function generateShape() {
     // Add to game area
     gameArea.appendChild(shape);
     
-    // Animate with physics
+    // Animate with physics - optimized version
     function animate() {
         if (!gameRunning) return;
         
         // Update physics
         physics.speedY += physics.acceleration;
         physics.y += physics.speedY;
-        
-        // Update rotation
         physics.rotation += physics.rotationSpeed;
         
-        // Apply position and rotation
-        shape.style.top = `${physics.y}px`;
-        shape.style.left = `${physics.x}px`;
-        shape.style.transform = `rotate(${physics.rotation}deg)`;
+        // Apply position and rotation using transform for better performance
+        shape.style.transform = `translate3d(0, ${physics.y}px, 0) rotate(${physics.rotation}deg)`;
         
         // Check if shape is out of bounds
         if (physics.y > gameArea.clientHeight + 50) {
@@ -753,9 +766,6 @@ function generateShape() {
             if (index > -1) {
                 clickableElements.splice(index, 1);
             }
-            
-            // Don't reset combo when shapes fall off screen
-            // This is the key change - we no longer call resetCombo() here
             
             shape.remove();
             return;
@@ -1250,177 +1260,151 @@ function createBurstEffect(shape, x, y) {
     // Play explosion sound
     playExplosionSound();
 }
-// Create burst effect when shape is clicked - optimized version
+// Create burst effect when shape is clicked - enhanced explosion effects with optimized performance
 function createBurstEffect(shape, x, y) {
     // Add burst animation to the shape
     shape.classList.add('burst');
     
-    // Skip most effects on low-end devices, but keep screen shake
-    if (isLowEndDevice) {
-        // Add screen shake effect even on low-end devices
-        gameArea.classList.add('screen-shake');
-        setTimeout(() => {
-            gameArea.classList.remove('screen-shake');
-        }, 400);
-        
-        // Play explosion sound
-        playExplosionSound();
-        return;
-    }
+    // Use a single container for all effects to reduce DOM operations
+    const effectsContainer = document.createElement('div');
+    effectsContainer.className = 'effects-container';
+    effectsContainer.style.position = 'absolute';
+    effectsContainer.style.left = '0';
+    effectsContainer.style.top = '0';
+    effectsContainer.style.width = '100%';
+    effectsContainer.style.height = '100%';
+    effectsContainer.style.pointerEvents = 'none';
+    effectsContainer.style.zIndex = '10';
+    gameArea.appendChild(effectsContainer);
     
-    // Create sonic boom effect
+    // Create sonic boom effect - enhanced and precisely centered
     const sonicBoom = document.createElement('div');
     sonicBoom.classList.add('sonic-boom');
+    sonicBoom.style.position = 'absolute';
+    sonicBoom.style.left = `${x}px`;
+    sonicBoom.style.top = `${y}px`;
+    sonicBoom.style.width = `${80}px`; // Fixed size for consistency
+    sonicBoom.style.height = `${80}px`; // Fixed size for consistency
+    effectsContainer.appendChild(sonicBoom);
     
-    // Position at the center of the clicked shape
-    const rect = shape.getBoundingClientRect();
-    const gameAreaRect = gameArea.getBoundingClientRect();
-    
-    const centerX = rect.left + rect.width / 2 - gameAreaRect.left;
-    const centerY = rect.top + rect.height / 2 - gameAreaRect.top;
-    
-    sonicBoom.style.left = `${centerX}px`;
-    sonicBoom.style.top = `${centerY}px`;
-    sonicBoom.style.width = `${rect.width * 4}px`;
-    sonicBoom.style.height = `${rect.height * 4}px`;
-    
-    gameArea.appendChild(sonicBoom);
-    
-    // Add screen shake effect for all devices
+    // Add screen shake effect - enhanced
     gameArea.classList.add('screen-shake');
-    setTimeout(() => {
-        gameArea.classList.remove('screen-shake');
-    }, 400);
     
-    // Skip lightning on mobile for performance
-    if (!isMobileDevice) {
-        // Create lightning flash effect
-        const lightning = document.createElement('div');
-        lightning.classList.add('lightning');
-        gameArea.appendChild(lightning);
-        
-        // Create lightning bolt
-        const createLightningBolt = () => {
-            const bolt = document.createElement('div');
-            bolt.classList.add('thunder-bolt');
-            
-            // Random position
-            const startX = Math.random() * gameArea.clientWidth;
-            bolt.style.left = `${startX}px`;
-            bolt.style.top = '0px';
-            
-            // Random height
-            const height = gameArea.clientHeight * (0.5 + Math.random() * 0.5);
-            bolt.style.setProperty('--bolt-height', `${height}px`);
-            
-            // Random rotation
-            const rotation = (Math.random() - 0.5) * 30;
-            bolt.style.transform = `rotate(${rotation}deg)`;
-            
-            gameArea.appendChild(bolt);
-            
-            // Remove after animation
-            setTimeout(() => {
-                if (gameArea.contains(bolt)) {
-                    bolt.remove();
-                }
-            }, 500);
-        };
-        
-        // Create multiple lightning bolts
-        createLightningBolt();
-        setTimeout(createLightningBolt, 100);
-        
-        // Remove lightning flash after animation
-        setTimeout(() => {
-            if (gameArea.contains(lightning)) {
-                lightning.remove();
-            }
-        }, 300);
+    // Create lightning flash effect - enhanced
+    const lightning = document.createElement('div');
+    lightning.classList.add('lightning');
+    effectsContainer.appendChild(lightning);
+    
+    // Create multiple lightning bolts - enhanced
+    for (let i = 0; i < 5; i++) { // More lightning bolts (5)
+        const bolt = document.createElement('div');
+        bolt.classList.add('thunder-bolt');
+        // Position bolts closer to the explosion center
+        const startX = x + (Math.random() - 0.5) * gameArea.clientWidth * 0.6;
+        bolt.style.position = 'absolute';
+        bolt.style.left = `${startX}px`;
+        bolt.style.top = '0px';
+        bolt.style.setProperty('--bolt-height', `${gameArea.clientHeight * 0.8}px`); // Taller bolts
+        bolt.style.transform = `rotate(${(Math.random() - 0.5) * 40}deg)`;
+        effectsContainer.appendChild(bolt);
     }
     
-    // Create energy field effect - simpler on mobile
+    // Create energy field effect - enhanced and precisely centered
     const energyField = document.createElement('div');
     energyField.classList.add('energy-field');
-    energyField.style.left = `${centerX}px`;
-    energyField.style.top = `${centerY}px`;
-    energyField.style.width = `${rect.width}px`;
-    energyField.style.height = `${rect.height}px`;
-    gameArea.appendChild(energyField);
+    energyField.style.position = 'absolute';
+    energyField.style.left = `${x}px`;
+    energyField.style.top = `${y}px`;
+    energyField.style.width = `${60}px`; // Fixed size for consistency
+    energyField.style.height = `${60}px`; // Fixed size for consistency
+    effectsContainer.appendChild(energyField);
     
-    // Remove energy field after animation
-    setTimeout(() => {
-        if (gameArea.contains(energyField)) {
-            energyField.remove();
-        }
-    }, 800);
-    
-    // Create shattered pieces effect - optimized for performance
-    // Fewer shards on mobile but still keep some
-    const numShards = isMobileDevice ? 15 : 30;
-    
-    const particleColors = [
-        '#ff6b6b', '#48dbfb', '#1dd1a1', '#feca57', '#ff9ff3', 
-        '#00d2d3', '#54a0ff', '#6c5ce7', '#fdcb6e', '#e84393'
-    ];
-    
-    // Get the shape's color for the shards
-    const shapeColor = window.getComputedStyle(shape).borderColor;
-    
-    // Create a fragment container for better performance
+    // Create shattered pieces effect - enhanced
     const fragmentContainer = document.createElement('div');
     fragmentContainer.className = 'fragment-container';
-    gameArea.appendChild(fragmentContainer);
+    fragmentContainer.style.position = 'absolute';
+    fragmentContainer.style.left = '0';
+    fragmentContainer.style.top = '0';
+    fragmentContainer.style.width = '100%';
+    fragmentContainer.style.height = '100%';
+    effectsContainer.appendChild(fragmentContainer);
+    
+    // Get the shape's color
+    const shapeColor = window.getComputedStyle(shape).borderColor;
+    
+    // Create more shards for better explosion effect
+    const numShards = 24; // Even more shards
+    const particleColors = [
+        '#ff6b6b', '#ff9ff3', '#feca57', // Red, Pink, Yellow
+        '#54a0ff', '#48dbfb', '#1dd1a1', // Blue, Light Blue, Green
+        '#ffdd59', '#ff5e57', '#d2dae2'  // Bright Yellow, Bright Red, Silver
+    ];
     
     for (let i = 0; i < numShards; i++) {
         const shard = document.createElement('div');
         shard.classList.add('shard');
         
         // Use shape's color for some shards, random colors for others
-        const useShapeColor = Math.random() > 0.5;
-        const color = useShapeColor ? shapeColor : particleColors[Math.floor(Math.random() * particleColors.length)];
+        const color = Math.random() > 0.5 ? shapeColor : particleColors[i % particleColors.length];
         shard.style.backgroundColor = color;
         shard.style.borderColor = color;
         
-        // Random size for varied effect - smaller for more realistic shards
-        const size = 5 + Math.random() * 15;
+        // Size - bigger shards
+        const size = 10 + Math.random() * 15;
         shard.style.width = `${size}px`;
         shard.style.height = `${size}px`;
         
-        // Position at the center of the clicked shape
-        shard.style.left = `${centerX}px`;
-        shard.style.top = `${centerY}px`;
+        // Position at center of the shape precisely
+        shard.style.position = 'absolute';
+        shard.style.left = `${x}px`;
+        shard.style.top = `${y}px`;
         
         // Random direction with more spread
-        const angle = (i / numShards) * Math.PI * 2 + Math.random() * 0.5;
-        const distance = 150 + Math.random() * 250;
+        const angle = (i / numShards) * Math.PI * 2;
+        const distance = 200 + Math.random() * 250; // Longer travel distance
         const tx = Math.cos(angle) * distance;
         const ty = Math.sin(angle) * distance;
         
-        // Random rotation for each shard
+        // Random rotation
         const rotation = Math.random() * 720 - 360;
         shard.style.setProperty('--tx', `${tx}px`);
         shard.style.setProperty('--ty', `${ty}px`);
         shard.style.setProperty('--rot', `${rotation}deg`);
         
-        // Add to fragment container
         fragmentContainer.appendChild(shard);
     }
     
-    // Remove fragment container after animation - shorter time on mobile
-    setTimeout(() => {
-        if (gameArea.contains(fragmentContainer)) {
-            fragmentContainer.remove();
-        }
-    }, isMobileDevice ? 1000 : 1800);
+    // Add a bright flash at the exact hit location
+    const hitFlash = document.createElement('div');
+    hitFlash.classList.add('hit-flash');
+    hitFlash.style.position = 'absolute';
+    hitFlash.style.left = `${x}px`;
+    hitFlash.style.top = `${y}px`;
+    effectsContainer.appendChild(hitFlash);
     
-    // Remove sonic boom after animation
-    setTimeout(() => {
-        if (gameArea.contains(sonicBoom)) {
-            sonicBoom.remove();
-        }
-    }, 1000);
+    // Add secondary explosion rings
+    for (let i = 0; i < 3; i++) {
+        const explosionRing = document.createElement('div');
+        explosionRing.classList.add('explosion-ring');
+        explosionRing.style.position = 'absolute';
+        explosionRing.style.left = `${x}px`;
+        explosionRing.style.top = `${y}px`;
+        explosionRing.style.animationDelay = `${i * 0.1}s`;
+        effectsContainer.appendChild(explosionRing);
+    }
     
     // Play explosion sound
     playExplosionSound();
+    
+    // Remove screen shake after animation
+    setTimeout(() => {
+        gameArea.classList.remove('screen-shake');
+    }, 400);
+    
+    // Remove all effects at once after animation
+    setTimeout(() => {
+        if (gameArea.contains(effectsContainer)) {
+            effectsContainer.remove();
+        }
+    }, 1200); // Longer duration for effects to be visible
 }
