@@ -4,44 +4,300 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>Shape Shoot</title>
-    <link rel="stylesheet" href="style.css">
-    <link rel="stylesheet" href="checkpoint.css">
-    <link rel="stylesheet" href="explosion.css">
     <style>
-        /* Additional touch-specific styles */
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: Arial, sans-serif;
+            background-color: #000;
+            color: white;
+            overflow: hidden;
+            height: 100vh;
+        }
+
+        /* Intro Animation */
+        #intro-screen {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: #000;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            z-index: 1000;
+        }
+
+        .intro-shapes {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            z-index: 1;
+        }
+
+        .intro-shape {
+            position: absolute;
+            border: 2px solid;
+            opacity: 0.5;
+        }
+
+        .game-title {
+            font-size: 60px;
+            font-weight: bold;
+            color: #4CAF50;
+            text-shadow: 0 0 20px rgba(76, 175, 80, 0.8);
+            margin-bottom: 40px;
+            display: flex;
+            justify-content: center;
+            z-index: 2;
+        }
+
+        .game-title span {
+            display: inline-block;
+            opacity: 0;
+            transform: translateY(30px);
+            animation: fadeInUp 0.5s forwards;
+        }
+
+        .game-title .space {
+            width: 20px;
+        }
+
+        @keyframes fadeInUp {
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        .intro-start-button {
+            padding: 15px 40px;
+            font-size: 24px;
+            background-color: #4CAF50;
+            color: white;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            margin-top: 40px;
+            box-shadow: 0 0 30px rgba(76, 175, 80, 0.8);
+            transition: all 0.3s ease;
+            z-index: 2;
+            opacity: 0;
+            transform: scale(0.8);
+            animation: pulseButton 2s infinite alternate, fadeIn 1s 2s forwards;
+        }
+
+        @keyframes pulseButton {
+            0% {
+                transform: scale(1);
+                box-shadow: 0 0 30px rgba(76, 175, 80, 0.8);
+            }
+            100% {
+                transform: scale(1.05);
+                box-shadow: 0 0 40px rgba(76, 175, 80, 1);
+            }
+        }
+
+        @keyframes fadeIn {
+            to {
+                opacity: 1;
+                transform: scale(1);
+            }
+        }
+
+        .intro-start-button:hover {
+            background-color: #45a049;
+            transform: scale(1.05);
+        }
+
+        /* Game Container */
+        #game-screen {
+            display: none;
+            width: 100%;
+            height: 100vh;
+        }
+
+        .game-header {
+            display: flex;
+            justify-content: space-between;
+            padding: 15px;
+            background-color: #111;
+            color: white;
+            font-size: 20px;
+            z-index: 10;
+        }
+
+        .combo {
+            color: #4CAF50;
+            font-weight: bold;
+            text-shadow: 0 0 5px rgba(76, 175, 80, 0.5);
+        }
+
+        #timer-bar-container {
+            width: 100%;
+            height: 4px;
+            background-color: #333;
+            position: relative;
+            z-index: 10;
+        }
+
+        #timer-bar {
+            height: 100%;
+            width: 100%;
+            background: linear-gradient(to right, #4CAF50, #FFEB3B, #FF5722);
+            transition: width 0.1s linear;
+        }
+
+        #game-area {
+            width: 100%;
+            height: calc(100vh - 64px);
+            position: relative;
+            overflow: hidden;
+            background-color: #000;
+        }
+
+        #game-canvas {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            z-index: 5;
+        }
+
+        .game-controls {
+            padding: 10px;
+            text-align: center;
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            z-index: 15;
+            width: 100%;
+        }
+
+        button {
+            padding: 15px 30px;
+            font-size: 24px;
+            background-color: #4CAF50;
+            color: white;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            margin: 0 5px;
+            box-shadow: 0 0 20px rgba(76, 175, 80, 0.6);
+            transition: all 0.3s ease;
+        }
+
+        button:hover {
+            background-color: #45a049;
+            transform: scale(1.05);
+            box-shadow: 0 0 30px rgba(76, 175, 80, 0.8);
+        }
+
+        #game-over {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background-color: rgba(0, 0, 0, 0.8);
+            color: white;
+            padding: 30px;
+            border-radius: 10px;
+            text-align: center;
+            z-index: 20;
+            display: none;
+        }
+
+        .retry-button {
+            padding: 15px 30px;
+            font-size: 24px;
+            background-color: #4CAF50;
+            color: white;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            margin-top: 20px;
+            box-shadow: 0 0 20px rgba(76, 175, 80, 0.6);
+            transition: all 0.3s ease;
+        }
+
+        /* Rules popup */
+        #rules-popup {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0, 0, 0, 0.8);
+            display: none;
+            justify-content: center;
+            align-items: center;
+            z-index: 100;
+        }
+
+        .popup-content {
+            background-color: #111;
+            border: 2px solid #4CAF50;
+            border-radius: 10px;
+            padding: 30px;
+            max-width: 500px;
+            width: 90%;
+            color: white;
+            text-align: center;
+            box-shadow: 0 0 30px rgba(76, 175, 80, 0.5);
+        }
+
+        .popup-content h2 {
+            color: #4CAF50;
+            margin-bottom: 20px;
+        }
+
+        .popup-content ul {
+            text-align: left;
+            margin: 20px 0;
+            padding-left: 20px;
+        }
+
+        .popup-content li {
+            margin-bottom: 10px;
+            line-height: 1.5;
+        }
+
+        .tip {
+            background-color: rgba(76, 175, 80, 0.2);
+            padding: 15px;
+            border-radius: 5px;
+            margin: 20px 0;
+            border-left: 4px solid #4CAF50;
+            text-align: left;
+        }
+
+        /* Responsive design */
         @media (max-width: 768px) {
-            .shape {
-                /* Make shapes larger on mobile for easier targeting */
-                transform: scale(1.2);
+            .game-title {
+                font-size: 40px;
             }
             
-            /* Prevent text selection on mobile */
-            * {
-                -webkit-touch-callout: none;
-                -webkit-user-select: none;
-                -khtml-user-select: none;
-                -moz-user-select: none;
-                -ms-user-select: none;
-                user-select: none;
-                touch-action: none;
-            }
-            
-            /* Make game area take full screen */
-            #game-area {
-                position: fixed;
-                top: 64px;
-                left: 0;
-                right: 0;
-                bottom: 0;
-                width: 100%;
-                height: calc(100% - 64px);
+            .intro-start-button {
+                padding: 12px 30px;
+                font-size: 20px;
             }
         }
     </style>
 </head>
 <body>
-    <!-- Intro Animation -->
-    <div id="intro-animation" class="intro-container">
+    <!-- Intro Screen - Pure HTML, no canvas -->
+    <div id="intro-screen">
+        <div class="intro-shapes" id="intro-shapes"></div>
         <div class="game-title">
             <span>S</span>
             <span>H</span>
@@ -55,11 +311,11 @@
             <span>O</span>
             <span>T</span>
         </div>
-        <div class="intro-shapes-container"></div>
         <button id="intro-start-btn" class="intro-start-button">START</button>
     </div>
 
-    <div class="game-container">
+    <!-- Game Screen - Only shown after intro -->
+    <div id="game-screen">
         <div class="game-header">
             <div class="score">Score: <span id="score">0</span></div>
             <div class="combo">Combo: <span id="combo-counter">0</span></div>
@@ -68,7 +324,7 @@
             <div id="timer-bar"></div>
         </div>
         <div id="game-area">
-            <!-- Shapes will be generated here -->
+            <canvas id="game-canvas"></canvas>
         </div>
         <div class="game-controls">
             <button id="start-btn">Start Game</button>
@@ -77,14 +333,14 @@
     </div>
     
     <!-- Game Over Screen -->
-    <div id="game-over" class="hidden">
+    <div id="game-over">
         <h2>Game Over!</h2>
         <p>Your final score: <span id="final-score">0</span></p>
         <button id="retry-btn" class="retry-button">Retry</button>
     </div>
     
     <!-- Rules Popup -->
-    <div id="rules-popup" class="popup">
+    <div id="rules-popup">
         <div class="popup-content">
             <h2>Game Rules</h2>
             <ul>
@@ -95,6 +351,7 @@
                 <li>Combo resets if you miss a click</li>
                 <li><strong>Each combo hit gives you 6 points!</strong></li>
                 <li>Reach 100, 200, 300 points for special effects!</li>
+                <li><strong>Press SPACEBAR to hit objects at your mouse position!</strong></li>
             </ul>
             <p class="tip"><strong>TIP:</strong> For better accuracy, aim slightly ahead of falling objects - like you're trying to catch them!</p>
             <button id="start-game-btn" class="start-game-button">Let's Play!</button>
@@ -109,7 +366,183 @@
         <source src="explosion-sound.mp3" type="audio/mpeg">
         Your browser does not support the audio element.
     </audio>
-    <script src="script.js"></script>
-    <script src="checkpoint.js"></script>
+    
+    <script>
+        // Create intro shapes with pure HTML/CSS
+        function createIntroShapes() {
+            const container = document.getElementById('intro-shapes');
+            const colors = [
+                '#ff6b6b', '#48dbfb', '#1dd1a1', '#feca57', '#ff9ff3', 
+                '#00d2d3', '#54a0ff', '#6c5ce7', '#00cec9', '#0984e3',
+                '#e84393', '#fdcb6e', '#e17055', '#d63031', '#a29bfe'
+            ];
+            
+            // Create 30 shapes
+            for (let i = 0; i < 30; i++) {
+                const shape = document.createElement('div');
+                shape.className = 'intro-shape';
+                
+                // Random position
+                const x = Math.random() * 100;
+                const y = Math.random() * 100;
+                shape.style.left = x + '%';
+                shape.style.top = y + '%';
+                
+                // Random size
+                const size = 20 + Math.random() * 60;
+                shape.style.width = size + 'px';
+                shape.style.height = size + 'px';
+                
+                // Random color
+                const color = colors[Math.floor(Math.random() * colors.length)];
+                shape.style.borderColor = color;
+                
+                // Random shape type
+                const shapeType = Math.floor(Math.random() * 3);
+                if (shapeType === 0) {
+                    // Circle
+                    shape.style.borderRadius = '50%';
+                } else if (shapeType === 1) {
+                    // Square
+                    shape.style.borderRadius = '0';
+                } else {
+                    // Triangle (using border)
+                    shape.style.width = '0';
+                    shape.style.height = '0';
+                    shape.style.borderWidth = size/2 + 'px';
+                    shape.style.borderStyle = 'solid';
+                    shape.style.borderColor = 'transparent transparent ' + color + ' transparent';
+                }
+                
+                // Random animation
+                const duration = 10 + Math.random() * 20;
+                shape.style.animation = `float ${duration}s infinite linear`;
+                
+                // Add to container
+                container.appendChild(shape);
+                
+                // Add floating animation
+                const keyframes = `
+                    @keyframes float {
+                        0% { transform: translate(0, 0) rotate(0deg); }
+                        25% { transform: translate(${Math.random() * 20}px, ${Math.random() * 20}px) rotate(${Math.random() * 180}deg); }
+                        50% { transform: translate(${Math.random() * -20}px, ${Math.random() * 20}px) rotate(${Math.random() * 360}deg); }
+                        75% { transform: translate(${Math.random() * -20}px, ${Math.random() * -20}px) rotate(${Math.random() * 540}deg); }
+                        100% { transform: translate(0, 0) rotate(${Math.random() * 720}deg); }
+                    }
+                `;
+                
+                const style = document.createElement('style');
+                style.innerHTML = keyframes;
+                document.head.appendChild(style);
+            }
+        }
+        
+        // Animate title letters with delay
+        function animateTitleLetters() {
+            const titleLetters = document.querySelectorAll('.game-title span');
+            titleLetters.forEach((letter, index) => {
+                letter.style.animationDelay = `${index * 0.1}s`;
+            });
+        }
+        
+        // Initialize intro
+        window.onload = function() {
+            console.log("Page loaded");
+            createIntroShapes();
+            animateTitleLetters();
+            
+            // Set up button click handlers
+            document.getElementById('intro-start-btn').onclick = function() {
+                console.log("Intro start button clicked");
+                document.getElementById('intro-screen').style.display = 'none';
+                document.getElementById('game-screen').style.display = 'block';
+                document.getElementById('rules-popup').style.display = 'flex';
+            };
+            
+            document.getElementById('start-btn').onclick = function() {
+                console.log("Start button clicked");
+                document.getElementById('rules-popup').style.display = 'flex';
+            };
+            
+            document.getElementById('start-game-btn').onclick = function() {
+                console.log("Start game button clicked");
+                document.getElementById('rules-popup').style.display = 'none';
+                
+                // Only load game scripts after intro
+                loadGameScripts();
+            };
+            
+            document.getElementById('restart-btn').onclick = function() {
+                console.log("Restart button clicked");
+                if (window.startGame) {
+                    window.startGame();
+                }
+            };
+            
+            document.getElementById('retry-btn').onclick = function() {
+                console.log("Retry button clicked");
+                document.getElementById('game-over').style.display = 'none';
+                if (window.startGame) {
+                    window.startGame();
+                }
+            };
+        };
+        
+        // Load game scripts only after intro
+        function loadGameScripts() {
+            console.log("Loading game scripts");
+            
+            const scripts = [
+                'screen_shake.js',
+                'mouse_trail.js',
+                'background.js',
+                'effects.js',
+                'game.js'
+            ];
+            
+            let loaded = 0;
+            
+            scripts.forEach(script => {
+                const scriptElement = document.createElement('script');
+                scriptElement.src = script;
+                scriptElement.onload = function() {
+                    loaded++;
+                    console.log(`Loaded ${script}`);
+                    
+                    if (loaded === scripts.length) {
+                        console.log("All scripts loaded, initializing game");
+                        initializeGame();
+                    }
+                };
+                document.body.appendChild(scriptElement);
+            });
+        }
+        
+        // Initialize game after scripts are loaded
+        function initializeGame() {
+            console.log("Initializing game components");
+            
+            if (window.initBackground) {
+                window.initBackground();
+            }
+            
+            if (window.initEffects) {
+                window.initEffects();
+            }
+            
+            if (window.initMouseTrail) {
+                window.initMouseTrail();
+            }
+            
+            if (window.initGame) {
+                window.initGame();
+            }
+            
+            if (window.startGame) {
+                window.startGame();
+            }
+        }
+    </script>
 </body>
 </html>
